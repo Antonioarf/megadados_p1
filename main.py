@@ -19,22 +19,22 @@ class Prod:
         self.quant = quant
         self.inf = inf
 
-@app.on_event("startup")
-def startup_event():
-    with open('bdd.json', 'r') as f:
-        guarda_obj = dict(json.load(f))
-    print("oioi!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-    print(guarda_obj)
-    for i in guarda_obj:
-        print(i)
+#@app.on_event("startup")
+#def startup_event():
+#    with open('bdd.json', 'r') as f:
+#        guarda_obj = dict(json.load(f))
+#    print("oioi!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+#    print(guarda_obj)
+#    for i in guarda_obj:
+#        print(i)
 
-@app.on_event("shutdown") #@app.on_event("startup")
-def shutdown_event():
-    print("oioi!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-    print(guarda_obj)
-    json_compatible_item_data = jsonable_encoder(guarda_obj)
-    with open('bdd.json', 'w') as json_file:
-        json.dump(json_compatible_item_data, json_file)
+#@app.on_event("shutdown") #@app.on_event("startup")
+#def shutdown_event():
+#    print("oioi!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+#    print(guarda_obj)
+#    json_compatible_item_data = jsonable_encoder(guarda_obj)
+#    with open('bdd.json', 'w') as json_file:
+#        json.dump(json_compatible_item_data, json_file)
 
 @app.post("/")
 async def cria(nome: str , quant:int= 0, inf:Union[str, None]= None):
