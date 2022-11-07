@@ -1,4 +1,3 @@
-a= 10
-l=[a]
-a= None+1
+a= "dfsdfsg"
+a = a.replace('df','pa')
 print(a)

@@ -1,72 +1,71 @@
-from pickle import DICT
-from typing import List, Union
-import json
-from fastapi import FastAPI, Query,HTTPException
-from fastapi.encoders import jsonable_encoder
+from typing import List
+
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from sqlalchemy.orm import Session
+
+import crud, models, schemas
+from database import SessionLocal, engine
+
+models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+ 
+
+# Dependency
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+@app.middleware("http")
+async def db_session_middleware(request: Request, call_next):
+    response = Response("Internal server error", status_code=500)
+    try:
+        request.state.db = SessionLocal()
+        response = await call_next(request)
+    finally:
+        request.state.db.close()
+    return response
 
 
-app = FastAPI()
-guarda_obj={}
+#GET http://127.0.0.1:8000/itens pedir lista 
 
-class Prod:
-    quant: int
-    nome: str
-    info: Union[str, None]
-    def __init__(self, name:str, quant=None, inf= None):
-        self.nome = name
-        self.quant = quant
-        self.inf = inf
 
-#@app.on_event("startup")
-#def startup_event():
-#    with open('bdd.json', 'r') as f:
-#        guarda_obj = dict(json.load(f))
-#    print("oioi!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-#    print(guarda_obj)
-#    for i in guarda_obj:
-#        print(i)
 
-#@app.on_event("shutdown") #@app.on_event("startup")
-#def shutdown_event():
-#    print("oioi!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-#    print(guarda_obj)
-#    json_compatible_item_data = jsonable_encoder(guarda_obj)
-#    with open('bdd.json', 'w') as json_file:
-#        json.dump(json_compatible_item_data, json_file)
+#get_items(db: Session, skip: int = 0, limit: int = 100)
+@app.get("/itens/", response_model=List[schemas.Item])
+def read_itens(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    itens = crud.get_items(db, skip=skip, limit=limit)
+    return itens
 
-@app.post("/")
-async def cria(nome: str , quant:int= 0, inf:Union[str, None]= None):
-    if nome in guarda_obj:
-        raise HTTPException(status_code=404, detail="Item ja existe")
-    guarda_obj[nome]= Prod(nome,quant, inf)
-    return {'criado id': nome}
+#create_item(db: Session, item: schemas.ItemCreate):
+@app.post("/item/", response_model=schemas.Item)
+def create_item(item: schemas.ItemCreate, db: Session = Depends(get_db)):
+    db_user = crud.get_item_title(db, title=item.title)
+    if db_user:
+        raise HTTPException(status_code=400, detail="Item already registered")
+    return crud.create_item(db=db, item=item)
 
-@app.get("/")
-async def mostra(nome:Union[str, None]= None):
-    if nome:
-        if nome not in guarda_obj:
-            raise HTTPException(status_code=404, detail="Item inexistente")
-        return guarda_obj[nome]
-    return guarda_obj
+#get_item_id(db: Session, item_id: int)
+@app.get("/item/{item_id}", response_model=schemas.Item)
+def read_item(item_id: int, db: Session = Depends(get_db)):
+    db_user = crud.get_item_id(db, item_id=item_id)
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="item not found")
+    return db_user
 
-@app.put("/")
-async def muda(nome: str , quant:Union[int, None]= 0, inf:Union[str, None]= None, soma: bool = True):
-    if nome not in guarda_obj:
-            raise HTTPException(status_code=404, detail="Item inexistente")
-    if quant:
-        if soma: #input eh um delta
-            guarda_obj[nome].quant += quant
-        else: #input eh absoluto
-            guarda_obj[nome].quant = quant
-    if inf:
-        guarda_obj[nome].inf = inf
-    return guarda_obj[nome]
+#@mod_item(db: Session, item: schemas.ItemCreate)
+@app.put("/item", response_model=schemas.Item)
+def mod_item(item: schemas.Item, db: Session = Depends(get_db)):
+    db_user = crud.mod_item(db, item = item)
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="item not found")
+    return db_user
 
-@app.get("/")
-async def apaga(nome: str):
-    if nome not in guarda_obj:
-            raise HTTPException(status_code=404, detail="Item inexistente")
-    apagado = guarda_obj[nome]
-    return {'deletando': apagado}
+#del_item(db: Session, item_id: int)
+@app.delete("/item/{item_id}", response_model=schemas.Item)
+def del_item(item_id: int, db: Session = Depends(get_db)):
+    itens = crud.del_item(db, item_id= item_id)
+    return itens
